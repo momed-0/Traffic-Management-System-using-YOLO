@@ -1,1 +1,0 @@
-results=model.predict(frame)
