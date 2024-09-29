@@ -60,5 +60,27 @@ This project focuses on improving traffic flow by integrating IoT devices and ma
 
 ## 📁 Repository Structure
 ```plaintext
-- /deep_sort       # Original deepsort code forked from repository and did modifications according to out dependencies
-- /main.py     # python script for object detection
+traffic_management_system/
+│
+├── deep_sort/                     # deep_sort library
+│
+├── config/                        # Configurations for the project
+│   └── config.py                 
+│
+├── models/                        # YOLO models and YOLO model wrapper
+│   └── yolo_model.py              
+│
+├── trackers/                      # Custom tracker modules
+│   └── vehicle_tracker.py         # Tracker and Track class (DeepSort wrapper)
+│
+├── utils/                         # Utility functions
+│   └── video_utils.py             # Functions for video processing, drawing, etc.
+│
+├── data/                          # Data files for detection
+│
+├── main.py                        # Main entry point for running the program
+│
+├── requirements.txt               # Python dependencies
+│
+└── README.md                      # Documentation
+
