@@ -9,11 +9,16 @@ from deep_sort.tools import generate_detections as gdet
 from deep_sort.deep_sort import nn_matching
 from deep_sort.deep_sort.detection import Detection
 import torch
+import publish
+
+
+# Establish the connection with AWS IoT
+publish.connect_client()
 
 
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
-    return datetime.fromtimestamp(timestamp)
+    return datetime.fromtimestamp(timestamp).isoformat()
 
 # Display detected vehicle data in a readable format
 def print_readable_detected_vehicles(detected_vehicles):
@@ -229,10 +234,12 @@ while True:
     
      # If new vehicle detected, display count; otherwise, log "No detections"
     if detection_found:
-        print_readable_detected_vehicles(currently_detected_vehicles)
+        #print_readable_detected_vehicles(currently_detected_vehicles)
+        publish.publish_data(currently_detected_vehicles)
     else:
         print("No detections found at ", convrt_time_stamp(time.time()))
         print()
 cap.release()
-
-
+print("Video feed ended!")
+# Disconnect the client once the detection loop is exited
+publish.disconnect_client()
