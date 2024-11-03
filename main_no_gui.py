@@ -29,7 +29,6 @@ def print_readable_detected_vehicles(detected_vehicles):
             print(f"  {vehicle_type}: {count}")
     print()  # Blank line for readability
 
-
 # Tracker class to handle object tracking using DeepSORT algorithm
 class Tracker:
     tracker = None
