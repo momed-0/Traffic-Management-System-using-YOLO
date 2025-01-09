@@ -129,6 +129,8 @@ count = 0
 # global Lists to store detected vehicle IDs and timestamps
 #bus, car, auto_rikshaw, motorcycle = [], [], [], []
 
+
+
 # Frame processing loop
 while True:
     # Continuously read frames from video
@@ -162,12 +164,17 @@ while True:
         # Organize detections by vehicle type
         if 'bus' in c:
             list_bus.append([x1, y1, x2, y2, score])
+
+
         elif 'car' in c:
             list_car.append([x1, y1, x2, y2, score])
+
         elif 'auto-rikshaw' in c:
             list_auto.append([x1, y1, x2, y2, score])
+
         elif 'motor-cycle' in c:
             list_motor.append([x1, y1, x2, y2, score])
+
 
     # Update each tracker with relevant bounding boxes
     #bbox_idx = tracker.update(frame, list_bus)
@@ -252,3 +259,4 @@ while True:
     #    print()
 cap.release()
 print("Video feed ended!")
+
