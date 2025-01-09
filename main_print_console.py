@@ -4,12 +4,10 @@ from ultralytics import YOLO
 import numpy as np
 import time
 from datetime import datetime
-'''
-from deep_sort.deep_sort.tracker import Tracker as DeepSortTracker
-from deep_sort.tools import generate_detections as gdet
-from deep_sort.deep_sort import nn_matching
-from deep_sort.deep_sort.detection import Detection
-'''
+#from deep_sort.deep_sort.tracker import Tracker as DeepSortTracker
+#from deep_sort.tools import generate_detections as gdet
+#from deep_sort.deep_sort import nn_matching
+#from deep_sort.deep_sort.detection import Detection
 import torch
 
 
@@ -34,7 +32,7 @@ def print_readable_detected_vehicles(detected_vehicles):
             print(f"  {vehicle_type}: {count}")
     print()  # Blank line for readability
 
-'''
+
 # Tracker class to handle object tracking using DeepSORT algorithm
 class Tracker:
     tracker = None
@@ -96,7 +94,7 @@ class Track:
         self.track_id = id
         self.bbox = bbox
 
-'''
+
 torch.cuda.set_device(0)
 
 # Load the YOLO model with TensorRT optimization
@@ -121,13 +119,13 @@ class_list = ["motor-cycle","car","auto-rikshaw","bus"]
 #    class_list = my_file.read().split('\n')
 
 count = 0
-'''
+
 # Initialize multiple tracker instances for different vehicle types
-tracker = Tracker()
-tracker1 = Tracker()
-tracker2 = Tracker()
-tracker3 = Tracker()
-'''
+# tracker = Tracker()
+# tracker1 = Tracker()
+# tracker2 = Tracker()
+# tracker3 = Tracker()
+
 # global Lists to store detected vehicle IDs and timestamps
 #bus, car, auto_rikshaw, motorcycle = [], [], [], []
 
@@ -170,43 +168,44 @@ while True:
             list_auto.append([x1, y1, x2, y2, score])
         elif 'motor-cycle' in c:
             list_motor.append([x1, y1, x2, y2, score])
-'''
+
     # Update each tracker with relevant bounding boxes
-    bbox_idx = tracker.update(frame, list_bus)
-    bbox1_idx = tracker1.update(frame, list_car)
-    bbox2_idx = tracker2.update(frame, list_auto)
-    bbox3_idx = tracker3.update(frame, list_motor)
+    #bbox_idx = tracker.update(frame, list_bus)
+    #bbox1_idx = tracker1.update(frame, list_car)
+    #bbox2_idx = tracker2.update(frame, list_auto)
+    #bbox3_idx = tracker3.update(frame, list_motor)
 
     # Track detection crossing the defined vertical line
-    detection_found = False
+    #detection_found = False
 
     # Bus tracking
-    for track in bbox_idx:
-        bbox = track.bbox
-        x3, y3, x4, y4 = bbox
-        id = track.track_id
+    #for track in bbox_idx:
+    #    bbox = track.bbox
+    #    x3, y3, x4, y4 = bbox
+    #    id = track.track_id
         #find the centre of bounding box
-        cx = int(x3 + x4) // 2
-        cy = int(y3 + y4) // 2
+    #    cx = int(x3 + x4) // 2
+    #    cy = int(y3 + y4) // 2
         #check if falls in some offset of the line then we have detected that vehicle
-        if LINE_Y < (cy + OFFSET) and LINE_Y > (cy - OFFSET):
+     #   if LINE_Y < (cy + OFFSET) and LINE_Y > (cy - OFFSET):
             #check if its a unique id
-            if bus.count(id) == 0:
-                #update the detection_found flag
-                detection_found = True
-                bus.append(id)
+      #      if bus.count(id) == 0:
+      #          #update the detection_found flag
+      #          detection_found = True
+      #          bus.append(id)
     # Car tracking
-    for track1 in bbox1_idx:
-        bbox1 = track1.bbox
-        x5, y5, x6, y6 = bbox1
-        id1 = track1.track_id
-        cx2 = int(x5 + x6) // 2
-        cy2 = int(y5 + y6) // 2
-        if LINE_Y < (cy2 + OFFSET) and LINE_Y > (cy2 - OFFSET):
-            if car.count(id1) == 0:
+    #for track1 in bbox1_idx:
+    #    bbox1 = track1.bbox
+    #    x5, y5, x6, y6 = bbox1
+    #    id1 = track1.track_id
+    #    cx2 = int(x5 + x6) // 2
+    #    cy2 = int(y5 + y6) // 2
+    #    if LINE_Y < (cy2 + OFFSET) and LINE_Y > (cy2 - OFFSET):
+    #        if car.count(id1) == 0:
                 #update the detection_found flag
-                detection_found = True
-                car.append(id1)
+    #            detection_found = True
+    #            car.append(id1)
+    """
     # Auto-rikshaw tracking
     for track2 in bbox2_idx:
         bbox2 = track2.bbox
@@ -231,7 +230,7 @@ while True:
                 #update the detection_found flag
                 detection_found = True
                 motorcycle.append(id3)
-'''
+    """
     currently_detected_vehicles = {
         "Timestamp": convrt_time_stamp(time.time()),
         "detections": [
@@ -239,17 +238,17 @@ while True:
             {"bus": len(list_bus)},
             {"auto-rikshaw": len(list_auto)},
             {"motor-cycle": len(list_motor)}
-        ]}
+        ]
+    }
     #Current State of Vehicles on Screen"
     print(currently_detected_vehicles)
     print('\n' * 2)
-'''
+    
      # If new vehicle crossed the line, display count; otherwise, log "No detections"
-    if detection_found:
-        print_readable_detected_vehicles(currently_detected_vehicles,0)
-    else:
-        print("No detections found at ", convrt_time_stamp(time.time()))
-        print()
-'''
+    #if detection_found:
+    #    print_readable_detected_vehicles(currently_detected_vehicles,0)
+    #else:
+    #    print("No detections found at ", convrt_time_stamp(time.time()))
+    #    print()
 cap.release()
 print("Video feed ended!")
