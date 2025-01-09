@@ -1,7 +1,6 @@
 import cv2
 import pandas as pd
 from ultralytics import YOLO
-import numpy as np
 import time
 from datetime import datetime
 import torch
@@ -10,10 +9,11 @@ import math
 #path for the video feed
 VIDEO_PATH = 'id4.mp4'
 # Define a vertical line position and offset for detecting crossing vehicles
-LINE_Y = 637
-OFFSET = 6
+LINE_Y = 610
+OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
+TIME_INT = 5.0
 
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
@@ -60,8 +60,6 @@ class Tracker:
         return objects_bbs_ids
 
 
-
-
 torch.cuda.set_device(0)
 
 # Load the YOLO model with TensorRT optimization
@@ -99,6 +97,8 @@ vehicles = {
     "motor-cycle": set()
 }
 
+global_id_map = {}
+
 count = 0 
 # Frame processing loop
 while True:
@@ -112,7 +112,7 @@ while True:
 
     # Process every third frame for efficiency
     count += 1
-    if count % 6 != 0:
+    if count % 3 != 0:
         continue
 
     # Reduce frame resolution for faster processing
@@ -120,7 +120,7 @@ while True:
     results = model(frame, imgsz=640, verbose=False)
     a = results[0].boxes.data.cpu().numpy()
     px = pd.DataFrame(a).astype("float")
-
+    det_time = time.time()
     # Separate detections by vehicle type for tracking
     list_bus, list_car, list_auto, list_motor = [], [], [], []
     for index, row in px.iterrows():
@@ -156,15 +156,16 @@ while True:
         if LINE_Y < (cy + OFFSET) and LINE_Y > (cy - OFFSET):
             did_update = True
             #remove the occurence if it exists in global list
-            print('\n'*3)
-            print('Vehicle discarded')
-            print('\n'*3)
+            print("A Bus left the frame!")
             vehicles["bus"].discard(id)
+            if id in global_id_map:
+                del global_id_map[id]
         else:
             #add to the list if we haven't detected this earlier
             if id not in vehicles["bus"]:
                 did_update = True
                 vehicles["bus"].add(id)
+                global_id_map[id] = [det_time,"bus"]
     #CAR
     for bbox1 in car_tracker:
         x5,y5,x6,y6,id1=bbox1
@@ -172,14 +173,15 @@ while True:
         cy2=int(y5+y6)//2
         if LINE_Y < (cy2 + OFFSET) and LINE_Y > (cy2 - OFFSET):
             did_update = True
-            print('\n'*3)
-            print('Vehicle discarded')
-            print('\n'*3)
+            print("A Car left the frame!") 
             vehicles["car"].discard(id1)
+            if id1 in global_id_map:
+                del global_id_map[id1]
         else:
            if id1 not in vehicles["car"]:
                 did_update = True
                 vehicles["car"].add(id1)
+                global_id_map[id1] = [det_time,"car"]
     #auto-rikshaw
     for bbox2 in auto_tracker:
         x7,y7,x8,y8,id2=bbox2
@@ -187,14 +189,15 @@ while True:
         cy3=int(y7+y8)//2
         if LINE_Y < (cy3 + OFFSET) and LINE_Y > (cy3 - OFFSET):
             did_update = True
-            print('\n'*3)
-            print('Vehicle discarded')
-            print('\n'*3)
+            print("A Auto-Rikshaw left the frame!") 
             vehicles["auto-rikshaw"].discard(id2)
+            if id2 in global_id_map:
+                del global_id_map[id2]
         else:
            if id2 not in vehicles["auto-rikshaw"]:
                 did_update = True
                 vehicles["auto-rikshaw"].add(id2)
+                global_id_map[id2] = [det_time,"auto-rikshaw"]
     #motorcycle
     for bbox3 in motor_tracker:
         x9,y9,x10,y10,id3=bbox3
@@ -202,15 +205,21 @@ while True:
         cy4=int(y9+y10)//2
         if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
             did_update = True
-            print('\n'*3)
-            print('Vehicle discarded')
-            print('\n'*3)
+            print("A Motor-Cycle left the frame!") 
             vehicles["motor-cycle"].discard(id3)
+            if id3 in global_id_map:
+                del global_id_map[id3]
         else:
            if id3 not in vehicles["motor-cycle"]:
                 did_update = True
                 vehicles["motor-cycle"].add(id3)
-    
+                global_id_map[id3] = [det_time,"motor-cycle"]
+    # traverse through the global id map and flush the items after certain time
+    for veh_id, entries in list(global_id_map.items()):
+        if det_time - entries[0] >= TIME_INT:
+            vehicles[entries[1]].discard(veh_id)
+            del global_id_map[veh_id]
+
     if did_update:
         #detected vehicles in this frame    
         currently_detected_vehicles = {
