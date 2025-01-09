@@ -79,7 +79,7 @@ torch.cuda.set_device(0)
 
 model=YOLO("best.engine") #tensorrt optimized model
 
-cap=cv2.VideoCapture('id4.mp4')
+cap=cv2.VideoCapture('trimmed-2-mult.mp4')
 
 if not cap.isOpened():
     print("Error: Unable to open video file 'id4.mp4' .")
@@ -90,7 +90,7 @@ class_list = []
 with open("coco1.txt","r") as my_file:
     class_list = my_file.read().split("\n")
 
-cy1=427
+cy1=353
 offset=6
 
 count=0
@@ -112,7 +112,7 @@ while True:
     count += 1
     if count % 5 != 0: 
         continue
-    frame=cv2.resize(frame,(1020, 500)) #reduce the resolution
+    frame=cv2.resize(frame,(640, 640)) #reduce the resolution
     #results=model.predict(frame)
     results = model(frame, imgsz=640)
     a = results[0].boxes.data
@@ -222,7 +222,7 @@ while True:
     cvzone.putTextRect(frame,f'MotorCycle : {countmotorcycle}',(50,240),scale=2,thickness=2,colorR=(0,0,255))
 
 
-    cv2.line(frame,(405,427),(580,427),(255,255,255),2)
+    cv2.line(frame,(328,226),(408,226),(255,255,255),2)
     
     cv2.imshow("RGB", frame)
     if cv2.waitKey(1)&0xFF==27:
