@@ -5,7 +5,7 @@ import numpy as np
 import time
 from datetime import datetime
 import torch
-
+import math
 
 #path for the video feed
 VIDEO_PATH = 'id4.mp4'
@@ -95,7 +95,7 @@ tracker3=Tracker()
 vehicles = {
     "bus": set(),
     "car": set(),
-    "auto-rikshaw": set()
+    "auto-rikshaw": set(),
     "motor-cycle": set()
 }
 
@@ -131,15 +131,15 @@ while True:
 
         # Organize detections by vehicle type
         if 'bus' in c:
-            list_bus.append([x1, y1, x2, y2, score])
+            list_bus.append([x1, y1, x2, y2])
         elif 'car' in c:
-            list_car.append([x1, y1, x2, y2, score])
+            list_car.append([x1, y1, x2, y2])
 
         elif 'auto-rikshaw' in c:
-            list_auto.append([x1, y1, x2, y2, score])
+            list_auto.append([x1, y1, x2, y2])
 
         elif 'motor-cycle' in c:
-            list_motor.append([x1, y1, x2, y2, score])
+            list_motor.append([x1, y1, x2, y2])
     #whenever the vehicle passes through the frame , remove it from global list
     did_update = False
     bus_tracker = tracker.update(list_bus)
@@ -156,6 +156,9 @@ while True:
         if LINE_Y < (cy + OFFSET) and LINE_Y > (cy - OFFSET):
             did_update = True
             #remove the occurence if it exists in global list
+            print('\n'*3)
+            print('Vehicle discarded')
+            print('\n'*3)
             vehicles["bus"].discard(id)
         else:
             #add to the list if we haven't detected this earlier
@@ -169,6 +172,9 @@ while True:
         cy2=int(y5+y6)//2
         if LINE_Y < (cy2 + OFFSET) and LINE_Y > (cy2 - OFFSET):
             did_update = True
+            print('\n'*3)
+            print('Vehicle discarded')
+            print('\n'*3)
             vehicles["car"].discard(id1)
         else:
            if id1 not in vehicles["car"]:
@@ -181,6 +187,9 @@ while True:
         cy3=int(y7+y8)//2
         if LINE_Y < (cy3 + OFFSET) and LINE_Y > (cy3 - OFFSET):
             did_update = True
+            print('\n'*3)
+            print('Vehicle discarded')
+            print('\n'*3)
             vehicles["auto-rikshaw"].discard(id2)
         else:
            if id2 not in vehicles["auto-rikshaw"]:
@@ -191,11 +200,14 @@ while True:
         x9,y9,x10,y10,id3=bbox3
         cx4=int(x9+x10)//2
         cy4=int(y9+y10)//2
-         if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
+        if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
             did_update = True
+            print('\n'*3)
+            print('Vehicle discarded')
+            print('\n'*3)
             vehicles["motor-cycle"].discard(id3)
         else:
-           if id2 not in vehicles["motor-cycle"]:
+           if id3 not in vehicles["motor-cycle"]:
                 did_update = True
                 vehicles["motor-cycle"].add(id3)
     
@@ -212,6 +224,7 @@ while True:
         }
         #Current State of Vehicles on Screen"
         print(currently_detected_vehicles)
+
         print('\n' * 2)
 
 cap.release()
