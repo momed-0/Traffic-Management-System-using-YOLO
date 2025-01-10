@@ -11,11 +11,12 @@ import publish
 #path for the video feed
 VIDEO_PATH = 'id4.mp4'
 # Define a vertical line position and offset for detecting crossing vehicles
-LINE_Y = 610
+LINE_Y = 610 # to find if vehicle crossed the frame
 OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
-TIME_INT = 5.0
+TIME_INT = 5.0 #to flush the queue
+PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
 
 # Establish the connection with AWS IoT
 publish.connect_client()
@@ -102,7 +103,11 @@ vehicles = {
 }
 
 global_id_map = {}
+
+#publish to aws on every PUBLISH_INTERVAL Seconds
+last_publish_time = time.time()
 count = 0
+
 # Frame processing loop
 while True:
     # Continuously read frames from video
@@ -143,8 +148,7 @@ while True:
 
         elif 'motor-cycle' in c:
             list_motor.append([x1, y1, x2, y2])
-    #whenever the vehicle passes through the frame , remove it from global list
-    did_update = False
+
     bus_tracker = tracker.update(list_bus)
     car_tracker = tracker1.update(list_car)
     auto_tracker = tracker2.update(list_auto)
@@ -157,16 +161,13 @@ while True:
         cx=int(x3+x4)//2
         cy=int(y3+y4)//2
         if LINE_Y < (cy + OFFSET) and LINE_Y > (cy - OFFSET):
-            did_update = True
             #remove the occurence if it exists in global list
-            print("A Bus left the frame!")
             vehicles["bus"].discard(id)
             if id in global_id_map:
                 del global_id_map[id]
         else:
             #add to the list if we haven't detected this earlier
             if id not in vehicles["bus"]:
-                did_update = True
                 vehicles["bus"].add(id)
                 global_id_map[id] = [det_time,"bus"]
     #CAR
@@ -175,14 +176,11 @@ while True:
         cx2=int(x5+x6)//2
         cy2=int(y5+y6)//2
         if LINE_Y < (cy2 + OFFSET) and LINE_Y > (cy2 - OFFSET):
-            did_update = True
-            print("A Car left the frame!") 
             vehicles["car"].discard(id1)
             if id1 in global_id_map:
                 del global_id_map[id1]
         else:
            if id1 not in vehicles["car"]:
-                did_update = True
                 vehicles["car"].add(id1)
                 global_id_map[id1] = [det_time,"car"]
     #auto-rikshaw
@@ -191,14 +189,11 @@ while True:
         cx3=int(x7+x8)//2
         cy3=int(y7+y8)//2
         if LINE_Y < (cy3 + OFFSET) and LINE_Y > (cy3 - OFFSET):
-            did_update = True
-            print("A Auto-Rikshaw left the frame!") 
             vehicles["auto-rikshaw"].discard(id2)
             if id2 in global_id_map:
                 del global_id_map[id2]
         else:
            if id2 not in vehicles["auto-rikshaw"]:
-                did_update = True
                 vehicles["auto-rikshaw"].add(id2)
                 global_id_map[id2] = [det_time,"auto-rikshaw"]
     #motorcycle
@@ -207,25 +202,21 @@ while True:
         cx4=int(x9+x10)//2
         cy4=int(y9+y10)//2
         if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
-            did_update = True
-            print("A Motor-Cycle left the frame!") 
             vehicles["motor-cycle"].discard(id3)
             if id3 in global_id_map:
                 del global_id_map[id3]
         else:
            if id3 not in vehicles["motor-cycle"]:
-                did_update = True
                 vehicles["motor-cycle"].add(id3)
                 global_id_map[id3] = [det_time,"motor-cycle"]
     # traverse through the global id map and flush the items after certain time
     for veh_id, entries in list(global_id_map.items()):
-        if det_time - entries[0] >= TIME_INT:
-            did_update = True
+        if time.time() - entries[0] >= TIME_INT:
             vehicles[entries[1]].discard(veh_id)
             del global_id_map[veh_id]
 
-    if did_update:
-        #detected vehicles in this frame    
+    if time.time() - last_publish_time >= PUBLISH_INTERVAL:
+        #detected vehicles in this time framw   
         currently_detected_vehicles = {
             "Timestamp": convrt_time_stamp(time.time()),
             "detections": [
@@ -238,6 +229,7 @@ while True:
         #Current State of Vehicles on Screen"
         # print(currently_detected_vehicles)
         publish.publish_data(currently_detected_vehicles)
+        last_publish_time = time.time()  # Reset the timer
 
 cap.release()
 print("Video feed ended!")

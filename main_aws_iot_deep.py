@@ -14,10 +14,11 @@ import publish
 #path for the video feed
 VIDEO_PATH = 'id4.mp4'
 # Define a vertical line position and offset for detecting crossing vehicles
-LINE_Y = 637
-OFFSET = 6
+LINE_Y = 610 # to find if vehicle crossed the frame
+OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
+PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
 
 # Establish the connection with AWS IoT
 publish.connect_client()
@@ -25,15 +26,6 @@ publish.connect_client()
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
     return datetime.fromtimestamp(timestamp).isoformat()
-
-# Display detected vehicle data in a readable format
-def print_readable_detected_vehicles(detected_vehicles):
-    print(f"Timestamp: {detected_vehicles['Timestamp']}")
-    print("Detections:")
-    for detection in detected_vehicles["detections"]:
-        for vehicle_type, count in detection.items():
-            print(f"  {vehicle_type}: {count}")
-    print()  # Blank line for readability
 
 # Tracker class to handle object tracking using DeepSORT algorithm
 class Tracker:
@@ -137,6 +129,9 @@ vehicles = {
     "motor-cycle": set()
 }
 
+#publish to aws on every PUBLISH_INTERVAL Seconds
+last_publish_time = time.time()
+
 # Frame processing loop
 while True:
     # Continuously read frames from video
@@ -185,9 +180,6 @@ while True:
     bbox2_idx = tracker2.update(frame, list_auto)
     bbox3_idx = tracker3.update(frame, list_motor)
 
-    #Track detection crossing the defined vertical line
-    did_update = False
-
     #Bus tracking
     for track in bbox_idx:
        bbox = track.bbox
@@ -197,12 +189,10 @@ while True:
        cx = int(x3 + x4) // 2
        cy = int(y3 + y4) // 2
        #check if falls in some offset of the line then we have detected that vehicle
-       if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
-            did_update = True
+       if LINE_Y < (cy + OFFSET) and LINE_Y  > (cy - OFFSET):
             vehicles["bus"].discard(id)
        else:
             if id not in vehicles["bus"]:
-                did_update = True
                 vehicles["bus"].add(id)
     #Car tracking
     for track1 in bbox1_idx:
@@ -211,12 +201,10 @@ while True:
        id1 = track1.track_id
        cx2 = int(x5 + x6) // 2
        cy2 = int(y5 + y6) // 2
-       if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
-            did_update = True
+       if LINE_Y < (cy2 + OFFSET) and LINE_Y  > (cy2 - OFFSET):
             vehicles["car"].discard(id1)
        else:
             if id1 not in vehicles["car"]:
-                did_update = True
                 vehicles["car"].add(id1)
     
     # Auto-rikshaw tracking
@@ -226,12 +214,10 @@ while True:
         id2 = track2.track_id
         cx3 = int(x7 + x8) // 2
         cy3 = int(y7 + y8) // 2
-        if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
-            did_update = True
+        if LINE_Y < (cy3 + OFFSET) and LINE_Y  > (cy3 - OFFSET):
             vehicles["auto-rikshaw"].discard(id2)
         else:
             if id2 not in vehicles["auto-rikshaw"]:
-                did_update = True
                 vehicles["auto-rikshaw"].add(id2)
     # Motorcycle tracking
     for track3 in bbox3_idx:
@@ -241,14 +227,12 @@ while True:
         cx4 = int(x9 + x10) // 2
         cy4 = int(y9 + y10) // 2
         if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
-            did_update = True
             vehicles["motor-cycle"].discard(id3)
         else:
             if id3 not in vehicles["motor-cycle"]:
-                did_update = True
                 vehicles["motor-cycle"].add(id3)
     
-    if did_update:
+    if time.time() - last_publish_time >= PUBLISH_INTERVAL:
         #detected vehicles in this frame    
         currently_detected_vehicles = {
             "Timestamp": convrt_time_stamp(time.time()),
@@ -262,6 +246,8 @@ while True:
         #Current State of Vehicles on Screen"
         # print(currently_detected_vehicles)
         publish.publish_data(currently_detected_vehicles)
+        last_publish_time = time.time()  # Reset the timer
+
 cap.release()
 print("Video feed ended!")
 
