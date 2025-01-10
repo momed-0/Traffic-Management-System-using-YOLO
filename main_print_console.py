@@ -217,6 +217,7 @@ while True:
     # traverse through the global id map and flush the items after certain time
     for veh_id, entries in list(global_id_map.items()):
         if det_time - entries[0] >= TIME_INT:
+            did_update = True
             vehicles[entries[1]].discard(veh_id)
             del global_id_map[veh_id]
 
