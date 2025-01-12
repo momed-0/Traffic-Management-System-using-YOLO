@@ -15,8 +15,8 @@ LINE_Y = 610 # to find if vehicle crossed the frame
 OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
-TIME_INT = 5.0 #to flush the queue
-PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
+TIME_INT = 2.0 #to flush the queue
+PUBLISH_INTERVAL = 2  # Interval in seconds for publish to aws
 
 # Establish the connection with AWS IoT
 publish.connect_client()
