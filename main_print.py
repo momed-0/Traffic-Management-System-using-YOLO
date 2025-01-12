@@ -19,7 +19,7 @@ LINE_X = 610
 OFFSET = 6
 SIZE_X = 640
 SIZE_Y=640
-TIME_INT = 2.0
+TIME_INT = 2.0 #time to flush the queue
 
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
@@ -201,7 +201,7 @@ while True:
             if bus_id not in vehicles["bus"]:
                 did_update = True
                 vehicles["bus"].add(bus_id)
-                global_id_map[bus_id] = [det_time, "car"] 
+                global_id_map[bus_id] = [det_time, "bus"] 
     #Car tracking
     for track1 in bbox1_idx:
        bbox1 = track1.bbox

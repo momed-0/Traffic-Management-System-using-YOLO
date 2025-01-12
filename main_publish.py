@@ -19,6 +19,7 @@ OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
 PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
+TIME_INT = 2.0 #interval to flush the queue
 
 # Establish the connection with AWS IoT
 publish.connect_client()
@@ -92,15 +93,15 @@ class Track:
 torch.cuda.set_device(0)
 
 # Load the YOLO model with TensorRT optimization
-model = YOLO("best.engine")
+model = YOLO("best.engine",task="detect")
 
 # trying a gstreamer pipeline - change it for video source
 pipeline = f"filesrc location={VIDEO_PATH} ! qtdemux ! h264parse ! nvv4l2decoder ! nvvidconv ! video/x-raw,width={SIZE_X},height={SIZE_Y} ! appsink"
 
 
 # Capture video from file
-#cap = cv2.VideoCapture(VIDEO_PATH)
-cap = cv2.VideoCapture(pipeline,cv2.CAP_GSTREAMER)
+cap = cv2.VideoCapture(VIDEO_PATH)
+#cap = cv2.VideoCapture(pipeline,cv2.CAP_GSTREAMER)
 
 if not cap.isOpened():
     print("Error: Unable to open video file 'id4.mp4'.")
@@ -128,6 +129,7 @@ vehicles = {
     "auto-rikshaw": set(),
     "motor-cycle": set()
 }
+global_id_map = {}
 
 #publish to aws on every PUBLISH_INTERVAL Seconds
 last_publish_time = time.time()
@@ -144,7 +146,7 @@ while True:
 
     # Process every third frame for efficiency
     count += 1
-    if count % 6 != 0:
+    if count % 3 != 0:
         continue
 
     # Reduce frame resolution for faster processing
@@ -184,16 +186,19 @@ while True:
     for track in bbox_idx:
        bbox = track.bbox
        x3, y3, x4, y4 = bbox
-       id = track.track_id
+       bus_id = track.track_id
        #find the centre of bounding box
        cx = int(x3 + x4) // 2
        cy = int(y3 + y4) // 2
        #check if falls in some offset of the line then we have detected that vehicle
-       if LINE_Y < (cy + OFFSET) and LINE_Y  > (cy - OFFSET):
-            vehicles["bus"].discard(id)
+       if cy > LINE_Y:
+            vehicles["bus"].discard(bus_id)
+            if bus_id in global_id_map:
+                del global_id_map[bus_id]
        else:
-            if id not in vehicles["bus"]:
-                vehicles["bus"].add(id)
+            if bus_id not in vehicles["bus"]:
+                vehicles["bus"].add(bus_id)
+                global_id_map[bus_id] = [det_time, "bus"] 
     #Car tracking
     for track1 in bbox1_idx:
        bbox1 = track1.bbox
@@ -201,11 +206,14 @@ while True:
        id1 = track1.track_id
        cx2 = int(x5 + x6) // 2
        cy2 = int(y5 + y6) // 2
-       if LINE_Y < (cy2 + OFFSET) and LINE_Y  > (cy2 - OFFSET):
+       if cy2 > LINE_Y:
             vehicles["car"].discard(id1)
+            if id1 in global_id_map:
+                del global_id_map[id1]
        else:
             if id1 not in vehicles["car"]:
                 vehicles["car"].add(id1)
+                global_id_map[bus_id] = [det_time, "car"]
     
     # Auto-rikshaw tracking
     for track2 in bbox2_idx:
@@ -214,11 +222,14 @@ while True:
         id2 = track2.track_id
         cx3 = int(x7 + x8) // 2
         cy3 = int(y7 + y8) // 2
-        if LINE_Y < (cy3 + OFFSET) and LINE_Y  > (cy3 - OFFSET):
+        if cy3 > LINE_Y:
             vehicles["auto-rikshaw"].discard(id2)
+            if id2 in global_id_map:
+                del global_id_map[id2]
         else:
             if id2 not in vehicles["auto-rikshaw"]:
                 vehicles["auto-rikshaw"].add(id2)
+                global_id_map[id2] = [det_time,"auto-rikshaw"]
     # Motorcycle tracking
     for track3 in bbox3_idx:
         bbox3 = track3.bbox
@@ -226,12 +237,20 @@ while True:
         id3 = track3.track_id
         cx4 = int(x9 + x10) // 2
         cy4 = int(y9 + y10) // 2
-        if LINE_Y < (cy4 + OFFSET) and LINE_Y  > (cy4 - OFFSET):
+        if cy4 > LINE_Y:
             vehicles["motor-cycle"].discard(id3)
+            if id3 in global_id_map:
+                del global_id_map[id3]
         else:
             if id3 not in vehicles["motor-cycle"]:
                 vehicles["motor-cycle"].add(id3)
+                global_id_map[id3] = [det_time,"motor-cycle"]
     
+    for veh_id, entries in list(global_id_map.items()):
+        if det_time - entries[0] >= TIME_INT:
+            did_update = True
+            vehicles[entries[1]].discard(veh_id)
+            del global_id_map[veh_id]
     if time.time() - last_publish_time >= PUBLISH_INTERVAL:
         #detected vehicles in this frame    
         currently_detected_vehicles = {
