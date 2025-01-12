@@ -29,7 +29,7 @@ class Tracker:
     encoder = None
     tracks = None
 
-    def _init_(self):
+    def __init__(self):
         max_cosine_distance = 0.4  # Controls distance threshold for object matching
         nn_budget = None  # Limits max features for each tracked object
         encoder_model_filename = 'deep_sort/networks/mars-small128.pb'
@@ -80,7 +80,7 @@ class Track:
     track_id = None
     bbox = None
 
-    def _init_(self, id, bbox):
+    def __init__(self, id, bbox):
         self.track_id = id
         self.bbox = bbox
 
@@ -88,7 +88,7 @@ class Track:
 torch.cuda.set_device(0)
 
 # Load the YOLO model with TensorRT optimization
-model = YOLO("best.engine")
+model = YOLO("best.engine",task="detect")
 
 # trying a gstreamer pipeline - change it for video source
 pipeline = f"filesrc location={VIDEO_PATH} ! qtdemux ! h264parse ! nvv4l2decoder ! nvvidconv ! video/x-raw,width={SIZE_X},height={SIZE_Y} ! appsink"
@@ -138,12 +138,12 @@ while True:
 
     # Process every third frame for efficiency
     count += 1
-    if count % 6 != 0:
+    if count % 3 != 0:
         continue
 
     # Reduce frame resolution for faster processing
     #frame = cv2.resize(frame, (SIZE_X, SIZE_Y))
-    results = model(frame, imgsz=640, verbose=False)
+    results = model(frame, imgsz=640,verbose=False)
     a = results[0].boxes.data.cpu().numpy()
     px = pd.DataFrame(a).astype("float")
 

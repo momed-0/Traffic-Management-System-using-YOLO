@@ -63,7 +63,7 @@ class Tracker:
 torch.cuda.set_device(0)
 
 # Load the YOLO model with TensorRT optimization
-model = YOLO("best.engine")
+model = YOLO("best.engine", task="detect")
 
 # trying a gstreamer pipeline - change it for video source
 pipeline = f"filesrc location={VIDEO_PATH} ! qtdemux ! h264parse ! nvv4l2decoder ! nvvidconv ! video/x-raw,width={SIZE_X},height={SIZE_Y} ! appsink"
@@ -117,7 +117,7 @@ while True:
 
     # Reduce frame resolution for faster processing
     #frame = cv2.resize(frame, (SIZE_X, SIZE_Y))
-    results = model(frame, imgsz=640, verbose=False)
+    results = model(frame, imgsz=640,verbose=False)
     a = results[0].boxes.data.cpu().numpy()
     px = pd.DataFrame(a).astype("float")
     det_time = time.time()

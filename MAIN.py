@@ -77,9 +77,9 @@ class Track:
 
 torch.cuda.set_device(0)
 
-model=YOLO("best.engine") #tensorrt optimized model
+model=YOLO("best.engine",task="detect") #tensorrt optimized model
 
-cap=cv2.VideoCapture('trimmed-2-mult.mp4')
+cap=cv2.VideoCapture('id4.mp4')
 
 if not cap.isOpened():
     print("Error: Unable to open video file 'id4.mp4' .")
@@ -90,7 +90,7 @@ class_list = []
 with open("coco1.txt","r") as my_file:
     class_list = my_file.read().split("\n")
 
-cy1=353
+cy1=427
 offset=6
 
 count=0
@@ -110,9 +110,9 @@ while True:
  
 
     count += 1
-    if count % 5 != 0: 
+    if count % 3 != 0: 
         continue
-    frame=cv2.resize(frame,(640, 640)) #reduce the resolution
+    #frame=cv2.resize(frame,(640, 640)) #reduce the resolution
     #results=model.predict(frame)
     results = model(frame, imgsz=640)
     a = results[0].boxes.data

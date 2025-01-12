@@ -68,7 +68,7 @@ class Auth:
             if verbose:
                 LOGGER.info(f"{PREFIX}New authentication successful ✅")
         elif verbose:
-            LOGGER.info(f"{PREFIX}Get API key from {API_KEY_URL} and then run 'yolo hub login API_KEY'")
+            LOGGER.info(f"{PREFIX}Get API key from {API_KEY_URL} and then run 'yolo login API_KEY'")
 
     def request_api_key(self, max_attempts=3):
         """
@@ -94,8 +94,7 @@ class Auth:
             (bool): True if authentication is successful, False otherwise.
         """
         try:
-            header = self.get_auth_header()
-            if header:
+            if header := self.get_auth_header():
                 r = requests.post(f"{HUB_API_ROOT}/v1/auth", headers=header)
                 if not r.json().get("success", False):
                     raise ConnectionError("Unable to authenticate.")
