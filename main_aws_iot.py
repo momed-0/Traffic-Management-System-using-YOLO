@@ -12,10 +12,10 @@ import publish
 VIDEO_PATH = 'id4.mp4'
 # Define a vertical line position and offset for detecting crossing vehicles
 LINE_Y = 610 # to find if vehicle crossed the frame
-OFFSET = 5
+OFFSET = 6
 SIZE_X = 640
 SIZE_Y=640
-TIME_INT = 5.0 #to flush the queue
+TIME_INT = 2.0 #to flush the queue
 PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
 
 # Establish the connection with AWS IoT
@@ -75,8 +75,8 @@ pipeline = f"filesrc location={VIDEO_PATH} ! qtdemux ! h264parse ! nvv4l2decoder
 
 
 # Capture video from file
-#cap = cv2.VideoCapture(VIDEO_PATH)
-cap = cv2.VideoCapture(pipeline,cv2.CAP_GSTREAMER)
+cap = cv2.VideoCapture(VIDEO_PATH)
+#cap = cv2.VideoCapture(pipeline,cv2.CAP_GSTREAMER)
 
 if not cap.isOpened():
     print("Error: Unable to open video file 'id4.mp4'.")
