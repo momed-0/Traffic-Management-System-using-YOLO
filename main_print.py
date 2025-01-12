@@ -15,11 +15,10 @@ import torch
 VIDEO_PATH = "id4.mp4"
 # Define a vertical line position and offset for detecting crossing vehicles
 LINE_Y = 610
-LINE_X = 610
-OFFSET = 6
 SIZE_X = 640
 SIZE_Y=640
 TIME_INT = 2.0 #time to flush the queue
+PUBLISH_INTERVAL = 1 #interval in seconds for publish to aws/console
 
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
@@ -108,11 +107,6 @@ if not cap.isOpened():
 # Read class names for the YOLO model to detect specific objects
 class_list = ["motor-cycle","car","auto-rikshaw","bus"]
 
-# with open("coco1.txt", "r") as my_file:
-#    class_list = my_file.read().split('\n')
-
-count = 0
-
 #Initialize multiple tracker instances for different vehicle types
 tracker = Tracker()
 tracker1 = Tracker()
@@ -130,6 +124,7 @@ vehicles = {
 
 global_id_map = {}
 
+count = 0
 # Frame processing loop
 while True:
     # Continuously read frames from video
@@ -180,7 +175,6 @@ while True:
 
     #Track detection crossing the defined vertical line
     did_update = False
-
     #Bus tracking
     for track in bbox_idx:
        bbox = track.bbox
@@ -266,7 +260,6 @@ while True:
             did_update = True
             vehicles[entries[1]].discard(veh_id)
             del global_id_map[veh_id]
-    cv2.line(frame,(0,LINE_Y),(640,LINE_Y),(255,255,255),2)
     cv2.imshow("Traffic-Cloud",frame)
     if did_update:
         #detected vehicles in this frame    

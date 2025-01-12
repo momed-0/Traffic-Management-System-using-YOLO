@@ -12,10 +12,9 @@ import torch
 import publish
 
 #path for the video feed
-VIDEO_PATH = 'id4.mp4'
+VIDEO_PATH = "id4.mp4"
 # Define a vertical line position and offset for detecting crossing vehicles
 LINE_Y = 610 # to find if vehicle crossed the frame
-OFFSET = 5
 SIZE_X = 640
 SIZE_Y=640
 PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
@@ -150,12 +149,13 @@ while True:
         continue
 
     # Reduce frame resolution for faster processing
-    #frame = cv2.resize(frame, (SIZE_X, SIZE_Y))
+    frame = cv2.resize(frame, (SIZE_X, SIZE_Y))
     results = model(frame, imgsz=640, verbose=False)
     a = results[0].boxes.data.cpu().numpy()
     px = pd.DataFrame(a).astype("float")
+    det_time = time.time()
 
-    # Separate detections by vehicle type for tracking
+    #Separate detections by vehicle type for tracking
     list_bus, list_car, list_auto, list_motor = [], [], [], []
     for index, row in px.iterrows():
         x1, y1, x2, y2 = int(row[0]), int(row[1]), int(row[2]), int(row[3])
@@ -182,6 +182,7 @@ while True:
     bbox2_idx = tracker2.update(frame, list_auto)
     bbox3_idx = tracker3.update(frame, list_motor)
 
+    vehicle_updated = False
     #Bus tracking
     for track in bbox_idx:
        bbox = track.bbox
@@ -192,11 +193,13 @@ while True:
        cy = int(y3 + y4) // 2
        #check if falls in some offset of the line then we have detected that vehicle
        if cy > LINE_Y:
+            vehicle_updated = True
             vehicles["bus"].discard(bus_id)
             if bus_id in global_id_map:
                 del global_id_map[bus_id]
        else:
             if bus_id not in vehicles["bus"]:
+                vehicle_updated = True
                 vehicles["bus"].add(bus_id)
                 global_id_map[bus_id] = [det_time, "bus"] 
     #Car tracking
@@ -207,13 +210,15 @@ while True:
        cx2 = int(x5 + x6) // 2
        cy2 = int(y5 + y6) // 2
        if cy2 > LINE_Y:
+            vehicle_updated = True
             vehicles["car"].discard(id1)
             if id1 in global_id_map:
                 del global_id_map[id1]
        else:
             if id1 not in vehicles["car"]:
+                vehicle_updated = True
                 vehicles["car"].add(id1)
-                global_id_map[bus_id] = [det_time, "car"]
+                global_id_map[id1] = [det_time, "car"]
     
     # Auto-rikshaw tracking
     for track2 in bbox2_idx:
@@ -223,11 +228,13 @@ while True:
         cx3 = int(x7 + x8) // 2
         cy3 = int(y7 + y8) // 2
         if cy3 > LINE_Y:
+            vehicle_updated = True
             vehicles["auto-rikshaw"].discard(id2)
             if id2 in global_id_map:
                 del global_id_map[id2]
         else:
             if id2 not in vehicles["auto-rikshaw"]:
+                vehicle_updated = True
                 vehicles["auto-rikshaw"].add(id2)
                 global_id_map[id2] = [det_time,"auto-rikshaw"]
     # Motorcycle tracking
@@ -238,17 +245,19 @@ while True:
         cx4 = int(x9 + x10) // 2
         cy4 = int(y9 + y10) // 2
         if cy4 > LINE_Y:
+            vehicle_updated = True
             vehicles["motor-cycle"].discard(id3)
             if id3 in global_id_map:
                 del global_id_map[id3]
         else:
             if id3 not in vehicles["motor-cycle"]:
+                vehicle_updated = True
                 vehicles["motor-cycle"].add(id3)
                 global_id_map[id3] = [det_time,"motor-cycle"]
     
     for veh_id, entries in list(global_id_map.items()):
-        if det_time - entries[0] >= TIME_INT:
-            did_update = True
+        if time.time() - entries[0] >= TIME_INT:
+            vehicle_updated = True
             vehicles[entries[1]].discard(veh_id)
             del global_id_map[veh_id]
     if time.time() - last_publish_time >= PUBLISH_INTERVAL:
@@ -263,7 +272,7 @@ while True:
             ]
         }
         #Current State of Vehicles on Screen"
-        # print(currently_detected_vehicles)
+        #print(currently_detected_vehicles)
         publish.publish_data(currently_detected_vehicles)
         last_publish_time = time.time()  # Reset the timer
 
