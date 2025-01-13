@@ -36,6 +36,8 @@ Also download the certificates and wallet from IoT core and extract it to keys/ 
 
 ## Development Flow
 
-main: default branch (outdated)
-v1-jetson-orin: code for jetson orin (JetPack 6.0 and libraries optimized for latest python version (3.10) )
-v1-jetson-nano: code for jetson nano (JetPack < 5 and libraries optimized for python 3.6) .Do not support deep_sort tracking
+ - main: default branch (outdated)
+
+ - v1-jetson-orin: code for jetson orin (JetPack 6.0 and libraries optimized for latest python version (3.10) )
+
+ - v1-jetson-nano: code for jetson nano (JetPack < 5 and libraries optimized for python 3.6) .Do not support deep_sort tracking
