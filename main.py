@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import pandas as pd
 from ultralytics import YOLO
@@ -20,8 +21,14 @@ SIZE_Y=640
 PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
 TIME_INT = 2.0 #interval to flush the queue
 
-# Establish the connection with AWS IoT
-publish.connect_client()
+#Parse cmd line args
+parser = argparse.ArgumentParser(description="Traffic Management System")
+parser.add_argument("--publish", action="store_true", help="Publish data to AWS IoT Core.")
+args = parser.parse_args()
+
+if args.publish:
+    # Establish the connection with AWS IoT
+    publish.connect_client()
 
 # Convert a UNIX timestamp into a human-readable datetime format
 def convrt_time_stamp(timestamp):
@@ -106,11 +113,10 @@ if not cap.isOpened():
     print("Error: Unable to open video file 'id4.mp4'.")
     exit()
 
-# Read class names for the YOLO model to detect specific objects
-class_list = ["motor-cycle","car","auto-rikshaw","bus"]
-
-# with open("coco1.txt", "r") as my_file:
-#    class_list = my_file.read().split('\n')
+# Read class names for the YOLO model to detect specific object/vehicles
+class_list = []
+with open("coco1.txt", "r") as my_file:
+    class_list = my_file.read().split('\n')
 
 count = 0
 
@@ -192,6 +198,9 @@ while True:
        cx = int(x3 + x4) // 2
        cy = int(y3 + y4) // 2
        #check if falls in some offset of the line then we have detected that vehicle
+       cv2.rectangle(frame,(int(x3),int(y3)),(int(x4),int(y4)) ,(0, 255, 0), 2)
+       #check if falls in some offset of the line then we have detected that vehicle
+       cv2.putText(frame, f"{bus_id}: Bus", (int(x3), int(y3) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
        if cy > LINE_Y:
             vehicle_updated = True
             vehicles["bus"].discard(bus_id)
@@ -209,6 +218,8 @@ while True:
        id1 = track1.track_id
        cx2 = int(x5 + x6) // 2
        cy2 = int(y5 + y6) // 2
+       cv2.rectangle(frame, (int(x5),int(y5)), (int(x6),int(y6)),(0,255,0),2)
+       cv2.putText(frame,f"{id1}: Car",(int(x5),int(y5)-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
        if cy2 > LINE_Y:
             vehicle_updated = True
             vehicles["car"].discard(id1)
@@ -227,6 +238,8 @@ while True:
         id2 = track2.track_id
         cx3 = int(x7 + x8) // 2
         cy3 = int(y7 + y8) // 2
+        cv2.rectangle(frame, (int(x7),int(y7)), (int(x8),int(y8)),(0,255,0),2)
+        cv2.putText(frame,f"{id2}: Auto",(int(x7),int(y7)-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
         if cy3 > LINE_Y:
             vehicle_updated = True
             vehicles["auto-rikshaw"].discard(id2)
@@ -244,6 +257,8 @@ while True:
         id3 = track3.track_id
         cx4 = int(x9 + x10) // 2
         cy4 = int(y9 + y10) // 2
+        cv2.rectangle(frame, (int(x9),int(y9)), (int(x10),int(y10)),(0,255,0),2)
+        cv2.putText(frame,f"{id3}: Bike",(int(x9),int(y9)-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),2)
         if cy4 > LINE_Y:
             vehicle_updated = True
             vehicles["motor-cycle"].discard(id3)
@@ -260,8 +275,8 @@ while True:
             vehicle_updated = True
             vehicles[entries[1]].discard(veh_id)
             del global_id_map[veh_id]
-    if time.time() - last_publish_time >= PUBLISH_INTERVAL:
-        #detected vehicles in this frame    
+    cv2.imshow("Traffic-Cloud",frame)
+    if vehicle_updated:
         currently_detected_vehicles = {
             "Timestamp": convrt_time_stamp(time.time()),
             "detections": [
@@ -271,14 +286,20 @@ while True:
                 {"motor-cycle": len(vehicles["motor-cycle"])}
             ]
         }
-        #Current State of Vehicles on Screen"
-        #print(currently_detected_vehicles)
-        publish.publish_data(currently_detected_vehicles)
-        last_publish_time = time.time()  # Reset the timer
+        if args.publish and time.time() - last_publish_time >= PUBLISH_INTERVAL:
+            publish.publish_data(currently_detected_vehicles)
+            last_publish_time = time.time()  # Reset the timer
+        else:
+            print(currently_detected_vehicles)
+        print('\n'*2)
+    #introduce a wait to load the frame
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
 cap.release()
 print("Video feed ended!")
 
-# Disconnect the client once the detection loop is exited
-publish.disconnect_client()
+if args.publish:
+    # Disconnect the client once the detection loop is exited
+    publish.disconnect_client()
 
