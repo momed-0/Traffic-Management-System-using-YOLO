@@ -18,8 +18,11 @@ VIDEO_PATH = "id4.mp4"
 LINE_Y = 610 # to find if vehicle crossed the frame
 SIZE_X = 640
 SIZE_Y=640
-PUBLISH_INTERVAL = 1  # Interval in seconds for publish to aws
-TIME_INT = 2.0 #interval to flush the queue
+PUBLISH_INTERVAL = 2  # Interval in seconds for publish to aws
+TIME_INT = 10.0 #interval to flush the queue
+EXPIRY_DURATION = 3600 #1 hour
+ZONE_NAME = "zone1" # give the intersection name
+
 
 #Parse cmd line args
 parser = argparse.ArgumentParser(description="Traffic Management System")
@@ -278,13 +281,13 @@ while True:
     cv2.imshow("Traffic-Cloud",frame)
     if vehicle_updated:
         currently_detected_vehicles = {
-            "Timestamp": convrt_time_stamp(time.time()),
-            "detections": [
-                {"car": len(vehicles["car"])},
-                {"bus": len(vehicles["bus"])},
-                {"auto-rikshaw": len(vehicles["auto-rikshaw"])},
-                {"motor-cycle": len(vehicles["motor-cycle"])}
-            ]
+            "detection_time": int(time.time()),
+            "car": len(vehicles["car"]),
+            "bus": len(vehicles["bus"]),
+            "auto_rikshaw": len(vehicles["auto-rikshaw"]),
+            "motor_cycle": len(vehicles["motor-cycle"]),
+            "expiry_time": int(time.time() + EXPIRY_DURATION),
+            "road_name" : ZONE_NAME
         }
         if args.publish and time.time() - last_publish_time >= PUBLISH_INTERVAL:
             publish.publish_data(currently_detected_vehicles)
