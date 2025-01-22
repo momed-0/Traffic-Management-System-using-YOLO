@@ -13,7 +13,7 @@ import torch
 import publish
 
 #path for the video feed
-VIDEO_PATH = "id4.mp4"
+VIDEO_PATH = "./video/id4.mp4"
 # Define a vertical line position and offset for detecting crossing vehicles
 LINE_Y = 610 # to find if vehicle crossed the frame
 SIZE_X = 640
