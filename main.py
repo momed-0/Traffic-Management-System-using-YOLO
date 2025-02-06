@@ -19,7 +19,6 @@ CONFIG = {
     "frame_size": (640, 640),
     "publish_interval": 2, # Interval in seconds for publish to cloud
     "time_int": 10.0,      # interval to flush the queue
-    "expiry_duration": 3600,# 1 hour (for data visualization purpose)
     "zone_name": "zone1",  
     "model_path": "models/best.engine",
     "coco_file": "config/coco1.txt", #class name
@@ -107,9 +106,11 @@ def parse_arguments():
     #Parse cmd line args
     parser = argparse.ArgumentParser(description="Traffic Management System")
     parser.add_argument("--publish", action="store_true", help="Publish data to AWS IoT Core.")
-    parser.add_argument("--video_path", type=str, required=False, default="./video/id4.mp4", help="Path to the video file.")
-    parser.add_argument("--model_path", type=str, required=False, default="./models/best.engine", help="Path to the YOLO model file.")
+    parser.add_argument("--video_path", type=str, default="./video/id4.mp4", help="Path to the video file.")
+    parser.add_argument("--model_path", type=str, default="./models/best.engine", help="Path to the YOLO model file.")
     parser.add_argument("--coco_file", type=str, required=False, default="./config/coco1.txt", help="Path to the COCO class names file.")
+    parser.add_argument("--publish_interval",type=int, default=2,help="Interval in seconds for publishing data.")
+    
     return parser.parse_args()
 
 def main():
@@ -118,13 +119,13 @@ def main():
     print(f"Video Path: {args.video_path}")
     print(f"Model Path: {args.model_path}")
     print(f"COCO File Path: {args.coco_file}")
-
+    CONFIG["coco_file"] = args.coco_file
+    CONFIG["model_path"] = args.model_path
+    CONFIG["video_path"] = args.video_path
+    
     if args.publish:
         # Establish the connection with AWS IoT
         publish.connect_client()
-    CONFIG["video_path"] = args.video_path
-    CONFIG["model_path"] = args.model_path
-    CONFIG["coco_file"] = args.coco_file
    
     class_list = parse_class_list(CONFIG["coco_file"])
     trackers = {cls: Tracker() for cls in class_list}
