@@ -15,13 +15,13 @@ import publish
 # Configuration constants
 CONFIG = {
     "video_path": "video/id4.mp4",
-    "line_y": 610, # to check if vehicle passed the frame
+    "line_y": 600, # to check if vehicle passed the frame
     "frame_size": (640, 640),
     "publish_interval": 2, # Interval in seconds for publish to cloud
     "time_int": 10.0,      # interval to flush the queue
     "zone_name": "zone1",  
-    "model_path": "models/best.engine",
-    "coco_file": "config/coco1.txt", #class name
+    "model_path": "models/yolov8_yt_model/best.engine",
+    "class_list": "config/yolov8_yt_model/class.txt", #class name
     "encoder_model": "deep_sort/networks/mars-small128.pb",
 }
 
@@ -103,31 +103,71 @@ def detect_vehicles(frame, results, class_list):
     return detections
 
 def parse_arguments():
-    #Parse cmd line args
+    """
+    Parse command-line arguments, using CONFIG values as defaults.
+    """
     parser = argparse.ArgumentParser(description="Traffic Management System")
-    parser.add_argument("--publish", action="store_true", help="Publish data to AWS IoT Core.")
-    parser.add_argument("--video_path", type=str, default="./video/id4.mp4", help="Path to the video file.")
-    parser.add_argument("--model_path", type=str, default="./models/best.engine", help="Path to the YOLO model file.")
-    parser.add_argument("--coco_file", type=str, required=False, default="./config/coco1.txt", help="Path to the COCO class names file.")
-    parser.add_argument("--publish_interval",type=int, default=2,help="Interval in seconds for publishing data.")
-    
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Publish data to AWS IoT Core.",
+    )
+    parser.add_argument(
+        "--zone_name",
+        type=str,
+        default=CONFIG["zone_name"],
+        help="Topic name to send MQTT messages.",
+    )
+    parser.add_argument(
+        "--video_path",
+        type=str,
+        default=CONFIG["video_path"],
+        help="Path to the video file.",
+    )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default=CONFIG["model_path"],
+        help="Path to the YOLO model file.",
+    )
+    parser.add_argument(
+        "--class_list",
+        type=str,
+        default=CONFIG["class_list"],
+        help="Path to the COCO class names file.",
+    )
+    parser.add_argument(
+        "--publish_interval",
+        type=int,
+        default=CONFIG["publish_interval"],
+        help="Interval in publishing messages",
+    )
+    parser.add_argument(
+        "--line_y",
+        type=int,
+        default=CONFIG["line_y"],
+        help="Y Axis coordinate to draw ending line.",
+    )
     return parser.parse_args()
+
+def update_config_with_arguments(args):
+    """
+    Update CONFIG dictionary with command-line argument values.
+    """
+    for key in CONFIG.keys():
+        if hasattr(args, key):
+            CONFIG[key] = getattr(args, key)
+
 
 def main():
     args = parse_arguments()
+    update_config_with_arguments(args)
 
-    print(f"Video Path: {args.video_path}")
-    print(f"Model Path: {args.model_path}")
-    print(f"COCO File Path: {args.coco_file}")
-    CONFIG["coco_file"] = args.coco_file
-    CONFIG["model_path"] = args.model_path
-    CONFIG["video_path"] = args.video_path
-    
     if args.publish:
         # Establish the connection with AWS IoT
-        publish.connect_client()
+        publish.connect_client(CONFIG["zone_name"])
    
-    class_list = parse_class_list(CONFIG["coco_file"])
+    class_list = parse_class_list(CONFIG["class_list"])
     trackers = {cls: Tracker() for cls in class_list}
     vehicles = {cls: set() for cls in class_list}
 
@@ -154,7 +194,7 @@ def main():
         if count % 3 != 0:
             continue
 
-        frame = cv2.resize(frame, CONFIG["frame_size"])
+        frame = cv2.resize(frame,CONFIG["frame_size"])
         results = model(frame, imgsz=CONFIG["frame_size"][0], verbose=False)
         detections = detect_vehicles(frame, results, class_list)
         det_time = time.time()
@@ -193,7 +233,6 @@ def main():
             currently_detected_vehicles = {
                 "detection_time": int(time.time()),
                 "road_name": CONFIG["zone_name"],
-                "expiry_time": int(time.time() + CONFIG["expiry_duration"]),
             }
             for cls in class_list:
                 currently_detected_vehicles[cls] = len(vehicles[cls])
