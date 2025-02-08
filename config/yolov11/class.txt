@@ -1,0 +1,7 @@
+Auto-Rickshaw
+Bike
+Bus
+Car
+HCV
+LCV
+Toto

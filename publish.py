@@ -11,13 +11,15 @@ PATH_TO_CERTIFICATE = "./keys/traffic-cloud.cert.pem"
 PATH_TO_PRIVATE_KEY = "./keys/traffic-cloud.private.key"
 PATH_TO_AMAZON_ROOT_CA_1 = "./keys/root-CA.crt"
 #define the topic in AWS IoT policy
-TOPIC = "trafficCloud/zone1" # Topic to which we are sending messages
+TOPIC = "trafficCloud/" # Topic to which we are sending messages
 
 
 # MQTT connection
 mqtt_connection = None
 
-def connect_client():
+def connect_client(topic):
+    global TOPIC
+    TOPIC += topic
     global mqtt_connection
     # Build the MQTT connection
     mqtt_connection = mqtt_connection_builder.mtls_from_path(

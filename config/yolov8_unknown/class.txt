@@ -1,0 +1,7 @@
+ambulance
+auto-rikshaw
+bike
+bus
+car
+police vehicle
+truck
