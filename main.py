@@ -1,4 +1,5 @@
 import argparse
+import yaml
 import cv2
 import pandas as pd
 from ultralytics import YOLO
@@ -14,21 +15,27 @@ import publish
 
 # Configuration constants
 CONFIG = {
-    "video_path": "video/id4.mp4",
+    "video_path": "video/test.mp4",
     "line_y": 600, # to check if vehicle passed the frame
     "frame_size": (640, 640),
     "publish_interval": 2, # Interval in seconds for publish to cloud
     "time_int": 10.0,      # interval to flush the queue
     "zone_name": "zone1",  
-    "model_path": "models/yolov8_yt_model/best.engine",
-    "class_list": "config/yolov8_yt_model/class.txt", #class name
+    "model_path": "models/yolov11n/yolov11n.engine",
+    "class_list": "config/yolov11n/class.txt", #class name
     "encoder_model": "deep_sort/networks/mars-small128.pb",
-}
+    "auto_model":   "models/auto.engine",
+    "full_class":   "config/yolov11n/full_class.yml",
+    }
 
 # Parse class list dynamically
 def parse_class_list(file_path):
     with open(file_path, "r") as file:
         return file.read().strip().split("\n")
+
+def parse_full_class_list(file_path):
+    with open(file_path, "r") as file:
+        return yaml.safe_load(file)
 
 # Tracker class to handle object tracking using DeepSORT algorithm
 class Tracker:
@@ -93,12 +100,12 @@ class Track:
         self.bbox = bbox
 
 
-def detect_vehicles(frame, results, class_list):
+def detect_vehicles(frame, results, class_list, full_class_list):
     detections = {cls: [] for cls in class_list}
     for row in results[0].boxes.data.cpu().numpy():
         x1, y1, x2, y2, score, cls_idx = int(row[0]), int(row[1]), int(row[2]), int(row[3]), row[4], int(row[5])
-        vehicle_type = class_list[cls_idx]
-        if vehicle_type in detections:
+        vehicle_type = full_class_list[cls_idx] 
+        if vehicle_type in class_list:   # filter the result based on the requirements
             detections[vehicle_type].append([x1, y1, x2, y2, score])
     return detections
 
@@ -137,6 +144,12 @@ def parse_arguments():
         help="Path to the COCO class names file.",
     )
     parser.add_argument(
+        "--full_class",
+        type=str,
+        default=CONFIG["full_class"],
+        help="Path to YAML file of class names",
+     )
+    parser.add_argument(
         "--publish_interval",
         type=int,
         default=CONFIG["publish_interval"],
@@ -168,6 +181,8 @@ def main():
         publish.connect_client(CONFIG["zone_name"])
    
     class_list = parse_class_list(CONFIG["class_list"])
+    full_class_list=parse_full_class_list(CONFIG["full_class"])
+
     trackers = {cls: Tracker() for cls in class_list}
     vehicles = {cls: set() for cls in class_list}
 
@@ -175,6 +190,8 @@ def main():
     last_publish_time = time.time()
 
     model = YOLO(CONFIG["model_path"], task="detect")
+    auto_model = YOLO(CONFIG["auto_model"], task="detect")
+
     cap = cv2.VideoCapture(CONFIG["video_path"])
 
     if not cap.isOpened():
@@ -196,7 +213,12 @@ def main():
 
         frame = cv2.resize(frame,CONFIG["frame_size"])
         results = model(frame, imgsz=CONFIG["frame_size"][0], verbose=False)
-        detections = detect_vehicles(frame, results, class_list)
+        results_auto = auto_model(frame, imgsz=CONFIG["frame_size"][0], verbose=False)
+
+        detections = detect_vehicles(frame, results, class_list, full_class_list)
+        
+        detections_auto = detect_vehicles(frame, results_auto,class_list, {0:"Auto"})
+        detections["Auto"] = detections_auto["Auto"]
         det_time = time.time()
 
         vehicle_updated = False
@@ -234,8 +256,8 @@ def main():
                 "detection_time": int(time.time()),
                 "road_name": CONFIG["zone_name"],
             }
-            for cls in class_list:
-                currently_detected_vehicles[cls] = len(vehicles[cls])
+            currently_detected_vehicles.update({cls: len(vehicles[cls]) for cls in vehicles})
+
             if args.publish and time.time() - last_publish_time >= CONFIG["publish_interval"]:
                 publish.publish_data(currently_detected_vehicles)
                 last_publish_time = time.time()  # Reset the timer
