@@ -19,7 +19,6 @@ CONFIG = {
     "line_y": 600, # to check if vehicle passed the frame
     "frame_size": (640, 640),
     "publish_interval": 2, # Interval in seconds for publish to cloud
-    "time_int": 10.0,      # interval to flush the queue
     "zone_name": "zone1",  
     "model_path": "models/yolov11n/yolov11n.engine",
     "class_list": "config/yolov11n/class.txt", #class name
@@ -171,6 +170,42 @@ def update_config_with_arguments(args):
         if hasattr(args, key):
             CONFIG[key] = getattr(args, key)
 
+def print_count_of_vehicles(vehicles, args, publish, last_publish_time):
+    """
+    Print the no of vehicles in each type
+    """
+    currently_detected_vehicles = {
+                "detection_time": int(time.time()),
+                "road_name": CONFIG["zone_name"],
+    }
+    currently_detected_vehicles.update({cls: len(vehicles[cls]) for cls in vehicles})
+
+    if args.publish and time.time() - last_publish_time >= CONFIG["publish_interval"]:
+        publish.publish_data(currently_detected_vehicles)
+        last_publish_time = time.time()  # Reset the timer
+    else:
+        print(currently_detected_vehicles)
+        print('\n'*2)
+    return last_publish_time  # Return the updated value
+
+def print_ids_of_vehicles(vehicles, args, publish, last_publish_time):
+    """
+    Print the no of ids and details of each stored vehicles
+    """
+    currently_detected_vehicles = {
+                "detection_time": int(time.time()),
+                "road_name": CONFIG["zone_name"],
+    }
+    currently_detected_vehicles.update({cls: vehicles[cls] for cls in vehicles})
+
+    if args.publish and time.time() - last_publish_time >= CONFIG["publish_interval"]:
+        publish.publish_data(currently_detected_vehicles)
+        last_publish_time = time.time()  # Reset the timer
+    else:
+        print(currently_detected_vehicles)
+        print('\n'*2)
+    return last_publish_time  # Return the updated value
+
 
 def main():
     args = parse_arguments()
@@ -184,9 +219,8 @@ def main():
     full_class_list=parse_full_class_list(CONFIG["full_class"])
 
     trackers = {cls: Tracker() for cls in class_list}
-    vehicles = {cls: set() for cls in class_list}
+    vehicles = {cls: {} for cls in class_list}
 
-    global_id_map = {}
     last_publish_time = time.time()
 
     model = YOLO(CONFIG["model_path"], task="detect")
@@ -221,7 +255,9 @@ def main():
         detections["Auto"] = detections_auto["Auto"]
         det_time = time.time()
 
-        vehicle_updated = False
+        # dictionary for each vehicle type mapping id -> detection parameters
+        vehicles = {cls: {} for cls in class_list}
+
         for vehicle_type, tracker in trackers.items():
             track_results = tracker.update(frame, detections[vehicle_type])
             for track in track_results:
@@ -229,42 +265,16 @@ def main():
                 x1, y1, x2, y2 = bbox
                 vehicle_id = track.track_id
                 cy = (y1 + y2) // 2
+                cx = (x1 + x2) // 2
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                 cv2.putText(frame, f"{vehicle_id}: {vehicle_type}", (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-                if cy > CONFIG["line_y"]:
-                    vehicle_updated = True
-                    vehicles[vehicle_type].discard(vehicle_id)
-                    if vehicle_id in global_id_map:
-                        del global_id_map[vehicle_id]
-                else:
-                    if vehicle_id not in vehicles[vehicle_type]:
-                        vehicle_updated = True
-                        vehicles[vehicle_type].add(vehicle_id)
-                        global_id_map[vehicle_id] = [det_time,vehicle_type]
-
-        for veh_id, veh_type in list(global_id_map.items()):
-            if time.time() - veh_type[0] >= CONFIG["time_int"]:
-                vehicle_updated = True
-                vehicles[veh_type[1]].discard(veh_id)
-                del global_id_map[veh_id]
-
+                # insert the result in dictionary
+                vehicles[vehicle_type][vehicle_id] = {"cx": cx, "cy": cy }
+        
         cv2.imshow("Traffic-Cloud",frame)
 
-        if vehicle_updated:
-            currently_detected_vehicles = {
-                "detection_time": int(time.time()),
-                "road_name": CONFIG["zone_name"],
-            }
-            currently_detected_vehicles.update({cls: len(vehicles[cls]) for cls in vehicles})
-
-            if args.publish and time.time() - last_publish_time >= CONFIG["publish_interval"]:
-                publish.publish_data(currently_detected_vehicles)
-                last_publish_time = time.time()  # Reset the timer
-            else:
-                print(currently_detected_vehicles)
-            print('\n'*2)
-
+        last_publish_time = print_count_of_vehicles(vehicles, args, publish, last_publish_time)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
